@@ -1,22 +1,10 @@
 %% Increment 1 & 2 Test Script
+
+SCRIPT AREA
+
 START SCRIPT
 
-%% Testing Declaration and Assignment (Inc 1)
-DECLARE INT x, y, z
-x=y=4
-
-%% Testing SCAN and Unary (Inc 2)
-DECLARE BOOL t
-SCAN t
-DECLARE BOOL not_t
-not_t = NOT t
-
-%% Testing Arithmetic (Inc 2)
-DECLARE INT result
-result = x + 10
-
-%% Testing Concatenation and Display (Inc 1)
-PRINT: "X is:" & x & "and Not T is:" & not_t & "Math:" & result
 
 END SCRIPT
+
 END SCRIPT

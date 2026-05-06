@@ -6,7 +6,7 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        File file = new File("interpreter/program.lexor");
+        File file = new File("program.lexor");
         LexorInterpreter interpreter = new LexorInterpreter();
 
         try (Scanner scanner = new Scanner(file)) {

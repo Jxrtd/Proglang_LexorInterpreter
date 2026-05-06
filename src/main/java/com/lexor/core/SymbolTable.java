@@ -27,6 +27,5 @@ public class SymbolTable {
         }
         // Initialize with null or a default value based on type if preferred
         this.variables.put(name, null); 
-        System.out.println("Variable " + type + " '" + name + "' declared.");
     }
 }
