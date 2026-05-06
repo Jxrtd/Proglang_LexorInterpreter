@@ -3,130 +3,124 @@ package com.lexor.core;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
+import com.lexor.handlers.*;
 
-import com.lexor.handlers.CommandHandler;
-import com.lexor.handlers.DeclarationHandler;
-import com.lexor.handlers.PrintHandler;
-import com.lexor.handlers.ScanHandler;
-
+/**
+ * Orchestrates the LEXOR interpreter, managing state and delegating commands.
+ */
 public class LexorInterpreter {
     private final SymbolTable symbolTable = new SymbolTable();
-    private final Map<String, CommandHandler> handlers = new HashMap<>();
     private final ExpressionEvaluator evaluator = new ExpressionEvaluator();
-    private boolean foundScriptArea = false;
-    private boolean isInsideScript = false;
-    private boolean declarationPhase = false;
+    private final Map<String, CommandHandler> handlers = new HashMap<>();
     
-    private static final Pattern VAR_NAME_PATTERN = Pattern.compile("^[a-zA-Z_][a-zA-Z0-9_]*$");
+    private boolean scriptAreaFound = false;
+    private boolean insideScript = false;
+    private boolean inDeclarationPhase = false;
 
     public LexorInterpreter() {
+        // Register all command handlers with the shared evaluator
         handlers.put("DECLARE", new DeclarationHandler(evaluator));
-        handlers.put("PRINT:", new PrintHandler()); 
-        handlers.put("SCAN", new ScanHandler());
+        handlers.put("PRINT:", new PrintHandler(evaluator)); 
+        handlers.put("SCAN:", new ScanHandler());
     }
 
     public void run(String line) {
-        line = line.replace("“", "\"").replace("”", "\"").replace("‘", "'").replace("’", "'");
-        String trimmed = line.trim();
-        
-        if (trimmed.isEmpty() || trimmed.startsWith("%%")) return;
-        
-        if (trimmed.equals("SCRIPT AREA")) {
-            if (foundScriptArea) {
-                throw new RuntimeException("Error: SCRIPT AREA already defined.");
-            }
-            foundScriptArea = true;
-            return;
-        }
+        line = normalizeLine(line);
+        if (shouldSkip(line)) return;
 
-        if (!foundScriptArea) {
-            throw new RuntimeException("Error: Program must start with SCRIPT AREA.");
-        }
+        // 1. Structural Validation
+        if (handleStructure(line)) return;
 
-        if (trimmed.equals("START SCRIPT")) {
-            if (isInsideScript) {
-                throw new RuntimeException("Error: START SCRIPT already called.");
-            }
-            isInsideScript = true; 
-            declarationPhase = true;
-            return; 
-        }
-        
-        if (trimmed.equals("END SCRIPT")) {
-            if (!isInsideScript) {
-                throw new RuntimeException("Error: END SCRIPT called without START SCRIPT.");
-            }
-            isInsideScript = false; 
-            declarationPhase = false;
-            return; 
-        }
+        validateState();
 
-        if (!isInsideScript) {
-            throw new RuntimeException("Error: Statement found outside of START SCRIPT and END SCRIPT.");
-        }
-
-        String[] tokens = trimmed.split("\\s+");
+        // 2. Command Execution
+        String[] tokens = line.split("\\s+");
         String command = tokens[0].toUpperCase();
 
         if (command.equals("DECLARE")) {
-            if (!declarationPhase) {
-                throw new RuntimeException("Error: All variable declarations must follow right after the START SCRIPT keyword.");
-            }
-            handlers.get("DECLARE").handle(trimmed, tokens, symbolTable);
+            executeDeclaration(line, tokens);
         } else {
-            declarationPhase = false; // Once a non-DECLARE statement is found, declaration phase ends
-            if (handlers.containsKey(command)) {
-                handlers.get(command).handle(trimmed, tokens, symbolTable);
-            } else if (trimmed.contains("=")) {
-                handleAssignment(trimmed);
-            } else {
-                throw new RuntimeException("Error: Unknown command or invalid statement: " + trimmed);
-            }
+            inDeclarationPhase = false; // End declaration phase on first non-DECLARE command
+            executeCommand(line, tokens, command);
+        }
+    }
+
+    private String normalizeLine(String line) {
+        return line.replace("“", "\"").replace("”", "\"").replace("‘", "'").replace("’", "'").trim();
+    }
+
+    private boolean shouldSkip(String line) {
+        return line.isEmpty() || line.startsWith("%%");
+    }
+
+    private boolean handleStructure(String line) {
+        if (line.equals("SCRIPT AREA")) {
+            if (scriptAreaFound) throw new RuntimeException("Error: SCRIPT AREA redefined.");
+            scriptAreaFound = true;
+            return true;
+        }
+        if (line.equals("START SCRIPT")) {
+            if (!scriptAreaFound) throw new RuntimeException("Error: Missing SCRIPT AREA.");
+            if (insideScript) throw new RuntimeException("Error: START SCRIPT repeated.");
+            insideScript = true;
+            inDeclarationPhase = true;
+            return true;
+        }
+        if (line.equals("END SCRIPT")) {
+            if (!insideScript) throw new RuntimeException("Error: END SCRIPT without START SCRIPT.");
+            insideScript = false;
+            inDeclarationPhase = false;
+            return true;
+        }
+        return false;
+    }
+
+    private void validateState() {
+        if (!scriptAreaFound) throw new RuntimeException("Error: Program must start with SCRIPT AREA.");
+        if (!insideScript) throw new RuntimeException("Error: Statement outside START/END SCRIPT.");
+    }
+
+    private void executeDeclaration(String line, String[] tokens) {
+        if (!inDeclarationPhase) {
+            throw new RuntimeException("Error: Declarations must follow START SCRIPT immediately.");
+        }
+        handlers.get("DECLARE").handle(line, tokens, symbolTable);
+    }
+
+    private void executeCommand(String line, String[] tokens, String command) {
+        if (handlers.containsKey(command)) {
+            handlers.get(command).handle(line, tokens, symbolTable);
+        } else if (line.contains("=")) {
+            handleAssignment(line);
+        } else {
+            throw new RuntimeException("Error: Unknown command: " + command);
         }
     }
 
     private void handleAssignment(String line) {
         String[] parts = line.split("=");
-        String rawExpression = parts[parts.length - 1].trim();
-        Object value = evaluator.evaluate(rawExpression, symbolTable);
+        Object value = evaluator.evaluate(parts[parts.length - 1].trim(), symbolTable);
         
         for (int i = 0; i < parts.length - 1; i++) {
             String varName = parts[i].trim();
-            if (!symbolTable.contains(varName)) {
-                throw new RuntimeException("Error: Variable '" + varName + "' must be declared before assignment.");
-            }
-            
-            validateType(varName, value);
+            validateVariableForAssignment(varName, value);
             symbolTable.set(varName, value);
         }
     }
 
-    private void validateType(String varName, Object value) {
-        String expectedType = symbolTable.getType(varName);
-        if (expectedType == null) return;
-
-        if (expectedType.equals("INT")) {
-            if (!(value instanceof Integer)) {
-                throw new RuntimeException("Type Mismatch: Variable '" + varName + "' is INT but assigned " + value.getClass().getSimpleName());
-            }
-        } else if (expectedType.equals("FLOAT")) {
-            if (!(value instanceof Double || value instanceof Integer)) {
-                throw new RuntimeException("Type Mismatch: Variable '" + varName + "' is FLOAT but assigned " + value.getClass().getSimpleName());
-            }
-        } else if (expectedType.equals("BOOL")) {
-            if (!(value instanceof Boolean)) {
-                throw new RuntimeException("Type Mismatch: Variable '" + varName + "' is BOOL but assigned " + value.getClass().getSimpleName());
-            }
-        } else if (expectedType.equals("CHAR")) {
-            if (!(value instanceof String && ((String) value).length() == 1)) {
-                throw new RuntimeException("Type Mismatch: Variable '" + varName + "' is CHAR but assigned " + value.getClass().getSimpleName());
-            }
+    private void validateVariableForAssignment(String varName, Object value) {
+        if (!symbolTable.contains(varName)) {
+            throw new RuntimeException("Error: Variable '" + varName + "' not declared.");
+        }
+        String type = symbolTable.getType(varName);
+        if (!TypeSystem.isCompatible(type, value)) {
+            throw new RuntimeException("Type Mismatch: " + varName + " is " + type + " but got " + value.getClass().getSimpleName());
         }
     }
 
     public static void validateVariableName(String name) {
-        if (!VAR_NAME_PATTERN.matcher(name).matches()) {
-            throw new RuntimeException("Error: Invalid variable name '" + name + "'. Must start with letter/underscore and contain only letters/digits/underscores.");
+        if (!Pattern.matches("^[a-zA-Z_][a-zA-Z0-9_]*$", name)) {
+            throw new RuntimeException("Error: Invalid variable name: " + name);
         }
     }
 }
