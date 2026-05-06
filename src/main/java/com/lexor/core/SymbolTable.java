@@ -18,14 +18,11 @@ public class SymbolTable {
         return variables.containsKey(name);
     }
 
-    /**
-     * Prevents double declaration of variables.
-     */
+    
     public void declare(String name, String type) {
-        if (this.variables.containsKey(name)) {
-            throw new RuntimeException("Error: Variable '" + name + "' is already declared.");
-        }
-        // Initialize with null or a default value based on type if preferred
-        this.variables.put(name, null); 
+    if (this.variables.containsKey(name)) {
+        throw new RuntimeException("Error: Variable '" + name + "' is already declared.");
     }
+    this.variables.put(name, null); 
+}
 }
