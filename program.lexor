@@ -1,12 +1,4 @@
-%% Increment 1 & 2 Test Script
-
 SCRIPT AREA
-
 START SCRIPT
-DECLARE INT a = 1, b = 2
-DECLARE FLOAT b = 2
-
-
 END SCRIPT
-
-%%END SCRIPT
+END SCRIPT
