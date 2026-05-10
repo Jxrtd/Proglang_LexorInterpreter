@@ -1,17 +1,16 @@
 package com.lexor.core;
 
-/**
- * Static utility for LEXOR type checking.
- */
+// Utility class for checking LEXOR data type compatibility.
 public class TypeSystem {
+    // Checks if the evaluated value matches the declared LEXOR type.
     public static boolean isCompatible(String type, Object value) {
         if (value == null) return true;
-        switch (type) {
-            case "INT": return value instanceof Integer;
-            case "FLOAT": return value instanceof Double || value instanceof Integer;
-            case "BOOL": return value instanceof Boolean;
-            case "CHAR": return value instanceof String && ((String) value).length() == 1;
-            default: return false;
-        }
+        return switch (type) {
+            case "INT" -> value instanceof Integer;
+            case "FLOAT" -> value instanceof Double || value instanceof Integer;
+            case "BOOL" -> value instanceof Boolean;
+            case "CHAR" -> value instanceof String && ((String) value).length() == 1;
+            default -> false;
+        };
     }
 }

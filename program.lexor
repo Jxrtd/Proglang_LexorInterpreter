@@ -1,5 +1,6 @@
+%% TC-14 - PRINT FLOAT variable
 SCRIPT AREA
 START SCRIPT
-    DECLARE INT x
-    x = 10 + unknown_y
+DECLARE FLOAT temp=98.6
+PRINT: temp
 END SCRIPT

@@ -2,94 +2,43 @@ package com.lexor.handlers;
 
 import java.util.Scanner;
 
+import com.lexor.core.LexorException;
 import com.lexor.core.SymbolTable;
 
-/**
- * Handles the SCAN: command for reading user input into variables.
- * Supports comma-separated variable lists and enforces type safety.
- */
+// Handles the SCAN: command for reading user input.
 public class ScanHandler implements CommandHandler {
     private final Scanner inputScanner = new Scanner(System.in);
 
-    @Override
-    public void handle(String[] tokens, SymbolTable symbolTable) {
-        // Handled by the full-line version for better space/comma handling
-    }
+    // Legacy handler placeholder.
+    @Override public void handle(String[] tokens, SymbolTable symbolTable) {}
 
-    /**
-     * Processes the SCAN: command using the full line for accurate parsing.
-     * @param line The original statement line.
-     * @param tokens Pre-split tokens.
-     * @param symbolTable The project's symbol table.
-     */
-    @Override
-    public void handle(String line, String[] tokens, SymbolTable symbolTable) {
-        // Expected format: SCAN: var1, var2, ...
-        int colonIdx = line.indexOf(":");
-        if (colonIdx == -1) {
-            throw new RuntimeException("Error: Invalid SCAN syntax. Missing colon after SCAN.");
-        }
-
-        String content = line.substring(colonIdx + 1).trim();
-        if (content.isEmpty()) {
-            throw new RuntimeException("Error: SCAN: command requires at least one variable name.");
-        }
-
-        // Split by commas to support multiple variables
-        String[] varNames = content.split(",");
-
-        for (String varName : varNames) {
-            varName = varName.trim();
-            if (varName.isEmpty()) continue;
-
-            // 1. Check if variable is declared
-            if (!symbolTable.contains(varName)) {
-                throw new RuntimeException("Error: Variable '" + varName + "' must be declared before SCAN.");
-            }
-
-            String type = symbolTable.getType(varName);
-            System.out.print("Input value for " + varName + " (" + type + "): ");
-            
-            if (!inputScanner.hasNextLine()) {
-                throw new RuntimeException("Error: No input provided for variable '" + varName + "'.");
-            }
-
-            String input = inputScanner.nextLine().trim();
-            Object value = parseInput(input, type, varName);
-            
-            // 2. Store the validated value
-            symbolTable.set(varName, value);
+    // Processes inputs for multiple variables separated by commas.
+    @Override public void handle(String line, String[] tokens, SymbolTable symbolTable) {
+        int idx = line.indexOf(":");
+        if (idx == -1) throw new LexorException("Error: SCAN missing colon.");
+        for (String varName : line.substring(idx + 1).split(",")) {
+            String name = varName.trim();
+            if (name.isEmpty()) continue;
+            if (!symbolTable.contains(name)) throw new LexorException("Error: Variable '" + name + "' not declared.");
+            String type = symbolTable.getType(name);
+            System.out.print("Input for " + name + " (" + type + "): ");
+            symbolTable.set(name, parseInput(name, inputScanner.nextLine().trim(), type));
         }
     }
 
-    /**
-     * Parses the string input based on the expected LEXOR data type.
-     * @param input The raw user input.
-     * @param type The target LEXOR type (INT, CHAR, BOOL, FLOAT).
-     * @param varName The name of the variable (for error reporting).
-     * @return The parsed object.
-     */
-    private Object parseInput(String input, String type, String varName) {
+    // Validates and converts user input based on the expected LEXOR type.
+    private Object parseInput(String name, String input, String type) {
         try {
-            switch (type) {
-                case "INT":
-                    return Integer.parseInt(input);
-                case "FLOAT":
-                    return Double.parseDouble(input);
-                case "BOOL":
-                    if (input.equalsIgnoreCase("TRUE")) return true;
-                    if (input.equalsIgnoreCase("FALSE")) return false;
-                    throw new RuntimeException("Type Mismatch: '" + input + "' is not a valid BOOL for '" + varName + "'.");
-                case "CHAR":
-                    if (input.length() != 1) {
-                        throw new RuntimeException("Type Mismatch: CHAR variable '" + varName + "' requires a single symbol.");
-                    }
-                    return input;
-                default:
-                    return input;
-            }
-        } catch (NumberFormatException e) {
-            throw new RuntimeException("Type Mismatch: Cannot parse '" + input + "' as " + type + " for variable '" + varName + "'.");
-        }
+            return switch (type) {
+                case "INT" -> Integer.valueOf(input);
+                case "FLOAT" -> Double.valueOf(input);
+                case "BOOL" -> input.equalsIgnoreCase("TRUE") ? true : input.equalsIgnoreCase("FALSE") ? false : throwError(name, input, type);
+                case "CHAR" -> input.length() == 1 ? input : throwError(name, input, type);
+                default -> input;
+            };
+        } catch (Exception e) { throw new LexorException("Type Mismatch: '" + input + "' is not a valid " + type); }
     }
+
+    // Helper for reporting type mismatch errors.
+    private Object throwError(String name, String input, String type) { throw new LexorException("Type Mismatch: '" + input + "' is not " + type); }
 }
