@@ -1,33 +1,30 @@
 package com.lexor.core;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.util.Scanner;
+import com.lexor.interpreter.Interpreter;
+import com.lexor.lexer.Lexer;
+import com.lexor.lexer.Token;
+import com.lexor.parser.Parser;
+import com.lexor.ast.Stmt;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
-// Entry point for the LEXOR interpreter.
+// The main entry point that wires the Lexer, Parser, and Interpreter together.
 public class Main {
-    // Reads and executes the program.lexor file.
+    // Reads source file and runs the full compiler pipeline.
     public static void main(String[] args) {
         String filename = "program.lexor";
-        File file = new File(filename);
-        LexorInterpreter interpreter = new LexorInterpreter();
-        try (Scanner fileScanner = new Scanner(file)) {
+        try {
+            String source = Files.readString(Paths.get(filename));
             System.out.println("--- Executing: " + filename + " ---");
-            int lineNum = 0;
-            while (fileScanner.hasNextLine()) {
-                lineNum++;
-                try {
-                    interpreter.run(fileScanner.nextLine());
-                } catch (LexorException e) {
-                    System.err.println("Runtime Error at line " + lineNum + ": " + e.getMessage());
-                    break;
-                }
-            }
+            Lexer lexer = new Lexer(source);
+            List<Token> tokens = lexer.scanTokens();
+            Parser parser = new Parser(tokens);
+            List<Stmt> statements = parser.parse();
+            Interpreter interpreter = new Interpreter();
+            interpreter.interpret(statements);
             System.out.println("--- Execution Complete ---");
-        } catch (FileNotFoundException e) {
-            System.err.println("Error: File not found: " + filename);
-        } catch (Exception e) {
-            System.err.println("Fatal Error: " + e.getMessage());
-        }
+        } catch (LexorException e) { System.err.println(e.getMessage());
+        } catch (Exception e) { System.err.println("Fatal Error: " + e.getMessage()); }
     }
 }

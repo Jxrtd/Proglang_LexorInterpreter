@@ -1,8 +1,9 @@
 package com.lexor.core;
 
-// Custom runtime exception for LEXOR interpreter.
+// Custom exception that includes line number information for error reporting.
 public class LexorException extends RuntimeException {
-    public LexorException(String message) {
-        super(message);
+    // Constructs the exception with the specific line number and message.
+    public LexorException(int line, String message) {
+        super("Runtime Error at line " + line + ": " + message);
     }
 }
