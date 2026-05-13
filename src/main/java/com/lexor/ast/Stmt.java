@@ -31,8 +31,8 @@ public abstract class Stmt {
 
     // Represents a user input command.
     public static class Scan extends Stmt {
-        public final Token name;
-        public Scan(Token name) { this.name = name; }
+        public final List<Token> names;
+        public Scan(List<Token> names) { this.names = names; }
         @Override public <R> R accept(Visitor<R> visitor) { return visitor.visitScanStmt(this); }
     }
 

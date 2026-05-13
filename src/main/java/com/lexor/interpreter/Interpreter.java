@@ -3,6 +3,7 @@ package com.lexor.interpreter;
 import com.lexor.ast.Expr;
 import com.lexor.ast.Stmt;
 import com.lexor.core.LexorException;
+import com.lexor.lexer.Token;
 import com.lexor.lexer.TokenType;
 import java.util.List;
 import java.util.Scanner;
@@ -41,24 +42,26 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Processes user input.
+    // Processes user input for one or more variables.
     @Override public Void visitScanStmt(Stmt.Scan stmt) {
-        String input = scanner.nextLine();
-        String type = environment.getType(stmt.name);
-        Object value;
-        try {
-            value = switch (type) {
-                case "INT" -> Integer.parseInt(input);
-                case "FLOAT" -> Double.parseDouble(input);
-                case "BOOL" -> Boolean.parseBoolean(input.toLowerCase());
-                case "CHAR" -> input.length() == 1 ? input : null;
-                default -> null;
-            };
-            if (value == null) throw new Exception();
-        } catch (Exception e) {
-            throw new LexorException(stmt.name.line, "Invalid input for " + type + ": " + input);
+        for (Token name : stmt.names) {
+            String input = scanner.nextLine();
+            String type = environment.getType(name);
+            Object value;
+            try {
+                value = switch (type) {
+                    case "INT" -> Integer.parseInt(input);
+                    case "FLOAT" -> Double.parseDouble(input);
+                    case "BOOL" -> Boolean.parseBoolean(input.toLowerCase());
+                    case "CHAR" -> input.length() == 1 ? input : null;
+                    default -> null;
+                };
+                if (value == null) throw new Exception();
+            } catch (Exception e) {
+                throw new LexorException(name.line, "Invalid input for " + type + ": " + input);
+            }
+            environment.assign(name, value);
         }
-        environment.assign(stmt.name, value);
         return null;
     }
 
@@ -78,7 +81,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return value;
     }
 
-    // Evaluates comparison operations.
+    // Evaluates comparison and arithmetic operations.
     @Override public Object visitBinaryExpr(Expr.Binary expr) {
         Object left = evaluate(expr.left);
         Object right = evaluate(expr.right);
@@ -89,6 +92,41 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             case LESS -> (double)toDouble(left) < (double)toDouble(right);
             case LESS_EQUAL -> (double)toDouble(left) <= (double)toDouble(right);
             case EQUAL_EQUAL -> left.equals(right);
+            case LESS_GREATER -> !left.equals(right);
+            case AND -> {
+                if (!(left instanceof Boolean && right instanceof Boolean)) {
+                    throw new LexorException(expr.operator.line, "Operands must be booleans for 'AND'.");
+                }
+                yield (Boolean) left && (Boolean) right;
+            }
+            case OR -> {
+                if (!(left instanceof Boolean && right instanceof Boolean)) {
+                    throw new LexorException(expr.operator.line, "Operands must be booleans for 'OR'.");
+                }
+                yield (Boolean) left || (Boolean) right;
+            }
+            case PLUS -> {
+                if (left instanceof Integer && right instanceof Integer) yield (Integer) left + (Integer) right;
+                yield toDouble(left) + toDouble(right);
+            }
+            case MINUS -> {
+                if (left instanceof Integer && right instanceof Integer) yield (Integer) left - (Integer) right;
+                yield toDouble(left) - toDouble(right);
+            }
+            case STAR -> {
+                if (left instanceof Integer && right instanceof Integer) yield (Integer) left * (Integer) right;
+                yield toDouble(left) * toDouble(right);
+            }
+            case SLASH -> {
+                if (toDouble(right) == 0) throw new LexorException(expr.operator.line, "Division by zero.");
+                if (left instanceof Integer && right instanceof Integer) yield (Integer) left / (Integer) right;
+                yield toDouble(left) / toDouble(right);
+            }
+            case PERCENT -> {
+                if (toDouble(right) == 0) throw new LexorException(expr.operator.line, "Division by zero.");
+                if (left instanceof Integer && right instanceof Integer) yield (Integer) left % (Integer) right;
+                yield toDouble(left) % toDouble(right);
+            }
             default -> null;
         };
     }
@@ -109,13 +147,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return environment.get(expr.name);
     }
 
-    // Evaluates unary operations (e.g., -5).
+    // Evaluates unary operations (e.g., -5, NOT flag).
     @Override public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
         if (expr.operator.type == TokenType.MINUS) {
             if (right instanceof Integer) return -(Integer) right;
             if (right instanceof Double) return -(Double) right;
             throw new LexorException(expr.operator.line, "Unary '-' only applies to numbers.");
+        }
+        if (expr.operator.type == TokenType.NOT) {
+            if (!(right instanceof Boolean)) {
+                throw new LexorException(expr.operator.line, "Unary 'NOT' only applies to booleans.");
+            }
+            return !(Boolean) right;
         }
         return null;
     }

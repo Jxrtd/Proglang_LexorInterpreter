@@ -28,6 +28,9 @@ public class Lexer {
         keywords.put("FLOAT", TokenType.FLOAT);
         keywords.put("CHAR", TokenType.CHAR);
         keywords.put("BOOL", TokenType.BOOL);
+        keywords.put("AND", TokenType.AND);
+        keywords.put("OR", TokenType.OR);
+        keywords.put("NOT", TokenType.NOT);
     }
 
     // Normalizes quotations and prepares the source for scanning.
@@ -52,7 +55,10 @@ public class Lexer {
             case '(' -> addToken(TokenType.LEFT_PAREN);
             case ')' -> addToken(TokenType.RIGHT_PAREN);
             case '>' -> addToken(match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
-            case '<' -> addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
+            case '<' -> {
+                if (match('>')) addToken(TokenType.LESS_GREATER);
+                else addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
+            }
             case '=' -> {
                 if (match('=')) addToken(TokenType.EQUAL_EQUAL);
                 else addToken(TokenType.EQUAL);
@@ -62,12 +68,15 @@ public class Lexer {
             case '$' -> addToken(TokenType.DOLLAR);
             case ',' -> addToken(TokenType.COMMA);
             case '-' -> addToken(TokenType.MINUS);
-            case ' ', '\r', '\t' -> {}
-            case '\n' -> line++;
+            case '+' -> addToken(TokenType.PLUS);
+            case '*' -> addToken(TokenType.STAR);
+            case '/' -> addToken(TokenType.SLASH);
             case '%' -> {
                 if (match('%')) while (peek() != '\n' && !isAtEnd()) advance();
-                else throw new LexorException(line, "Unexpected character: %");
+                else addToken(TokenType.PERCENT);
             }
+            case ' ', '\r', '\t' -> {}
+            case '\n' -> line++;
             case '"', '\'' -> string(c);
             case '[' -> escapeCode();
             default -> {

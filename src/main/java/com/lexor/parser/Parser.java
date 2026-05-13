@@ -80,8 +80,12 @@ public class Parser {
 
     // Parses a SCAN statement.
     private Stmt scanStatement() {
-        Token name = consume(TokenType.IDENTIFIER, "Expect variable name after SCAN.");
-        return new Stmt.Scan(name);
+        consume(TokenType.COLON, "Expect ':' after SCAN.");
+        List<Token> names = new ArrayList<>();
+        do {
+            names.add(consume(TokenType.IDENTIFIER, "Expect variable name after SCAN."));
+        } while (match(TokenType.COMMA));
+        return new Stmt.Scan(names);
     }
 
     // Wraps an expression result as a standalone statement.
@@ -96,7 +100,7 @@ public class Parser {
 
     // Handles variable assignments (supporting chains like x = y = 5).
     private Expr assignment() {
-        Expr expr = comparison();
+        Expr expr = or();
         if (match(TokenType.EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
@@ -106,10 +110,54 @@ public class Parser {
         return expr;
     }
 
-    // Parses comparison operators (>, >=, <, <=, ==).
+    // Parses logical OR.
+    private Expr or() {
+        Expr expr = and();
+        while (match(TokenType.OR)) {
+            Token operator = previous();
+            Expr right = and();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    // Parses logical AND.
+    private Expr and() {
+        Expr expr = comparison();
+        while (match(TokenType.AND)) {
+            Token operator = previous();
+            Expr right = comparison();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    // Parses comparison operators (>, >=, <, <=, ==, <>).
     private Expr comparison() {
+        Expr expr = term();
+        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL, TokenType.EQUAL_EQUAL, TokenType.LESS_GREATER)) {
+            Token operator = previous();
+            Expr right = term();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    // Parses addition and subtraction (+, -).
+    private Expr term() {
+        Expr expr = factor();
+        while (match(TokenType.PLUS, TokenType.MINUS)) {
+            Token operator = previous();
+            Expr right = factor();
+            expr = new Expr.Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    // Parses multiplication, division, and modulo (*, /, %).
+    private Expr factor() {
         Expr expr = unary();
-        while (match(TokenType.GREATER, TokenType.GREATER_EQUAL, TokenType.LESS, TokenType.LESS_EQUAL, TokenType.EQUAL_EQUAL)) {
+        while (match(TokenType.STAR, TokenType.SLASH, TokenType.PERCENT)) {
             Token operator = previous();
             Expr right = unary();
             expr = new Expr.Binary(expr, operator, right);
@@ -117,9 +165,9 @@ public class Parser {
         return expr;
     }
 
-    // Parses unary operators (currently only MINUS).
+    // Parses unary operators (currently MINUS, NOT).
     private Expr unary() {
-        if (match(TokenType.MINUS)) {
+        if (match(TokenType.MINUS, TokenType.NOT)) {
             Token operator = previous();
             Expr right = unary();
             return new Expr.Unary(operator, right);

@@ -1,6 +1,8 @@
 SCRIPT AREA
 START SCRIPT
-END SCRIPT
-SCRIPT AREA
-START SCRIPT
+DECLARE INT a, b
+DECLARE INT sum
+SCAN: a, b
+sum= a + b
+PRINT: a & " + " & b & " = " & sum
 END SCRIPT
