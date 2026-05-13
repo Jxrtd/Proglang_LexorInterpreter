@@ -49,7 +49,8 @@ public class ExpressionEvaluator {
         if (exp.startsWith("NOT ")) return !toBool(eval(exp.substring(4), table));
         if (exp.startsWith("-")) {
             Object v = eval(exp.substring(1), table);
-            return (v instanceof Double) ? -(Double)v : -(Integer)v;
+            if (v instanceof Double aDouble) return -aDouble;
+            return -(Integer) v;
         }
 
         return resolveBaseValue(exp, table);
@@ -110,17 +111,28 @@ public class ExpressionEvaluator {
         char op = exp.charAt(idx);
         Object left = eval(exp.substring(0, idx), table);
         Object right = eval(exp.substring(idx + 1), table);
-        if (!(left instanceof Number) || !(right instanceof Number)) throw new LexorException("Arithmetic error: non-numeric operands.");
-        double l = ((Number)left).doubleValue();
-        double r = ((Number)right).doubleValue();
+        if (!(left instanceof Number) || !(right instanceof Number))
+            throw new LexorException("Arithmetic error: non-numeric operands.");
+        double l = ((Number) left).doubleValue();
+        double r = ((Number) right).doubleValue();
         if ((op == '/' || op == '%') && r == 0) throw new LexorException("Division by zero.");
-        boolean isFloat = (left instanceof Double || right instanceof Double || op == '/');
+        boolean isFloat = (left instanceof Double || right instanceof Double);
         switch (op) {
-            case '+': return isFloat ? l + r : (int)l + (int)r;
-            case '-': return isFloat ? l - r : (int)l - (int)r;
-            case '*': return isFloat ? l * r : (int)l * (int)r;
-            case '/': return l / r;
-            case '%': return isFloat ? l % r : (int)l % (int)r;
+            case '+':
+                if (isFloat) return l + r;
+                return (int) l + (int) r;
+            case '-':
+                if (isFloat) return l - r;
+                return (int) l - (int) r;
+            case '*':
+                if (isFloat) return l * r;
+                return (int) l * (int) r;
+            case '/':
+                if (isFloat) return l / r;
+                return (int) l / (int) r;
+            case '%':
+                if (isFloat) return l % r;
+                return (int) l % (int) r;
         }
         return null;
     }
@@ -140,8 +152,8 @@ public class ExpressionEvaluator {
         if (token.equals("TRUE")) return true;
         if (token.equals("FALSE")) return false;
         try {
-            if (token.contains(".")) return Double.parseDouble(token);
-            return Integer.parseInt(token);
+            if (token.contains(".")) return Double.valueOf(token);
+            return Integer.valueOf(token);
         } catch (NumberFormatException e) {
             if (token.matches("^[a-zA-Z_].*")) throw new LexorException("Undefined variable: " + token);
             return token;
@@ -150,7 +162,7 @@ public class ExpressionEvaluator {
 
     // Helper for boolean conversion.
     private boolean toBool(Object o) {
-        if (o instanceof Boolean) return (Boolean) o;
+        if (o instanceof Boolean aBoolean) return aBoolean;
         String s = String.valueOf(o);
         if (s.equals("TRUE")) return true;
         if (s.equals("FALSE")) return false;

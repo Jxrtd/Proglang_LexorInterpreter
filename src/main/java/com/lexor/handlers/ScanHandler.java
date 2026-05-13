@@ -21,7 +21,6 @@ public class ScanHandler implements CommandHandler {
             if (name.isEmpty()) continue;
             if (!symbolTable.contains(name)) throw new LexorException("Error: Variable '" + name + "' not declared.");
             String type = symbolTable.getType(name);
-            System.out.print("Input for " + name + " (" + type + "): ");
             symbolTable.set(name, parseInput(name, inputScanner.nextLine().trim(), type));
         }
     }

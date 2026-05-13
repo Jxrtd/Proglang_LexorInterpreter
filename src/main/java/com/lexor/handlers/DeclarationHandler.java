@@ -23,7 +23,7 @@ public class DeclarationHandler implements CommandHandler {
             String trimmed = dec.trim();
             if (trimmed.isEmpty()) continue;
             if (trimmed.contains("=")) {
-                String[] parts = trimmed.split("=", 2);
+                String[] parts = trimmed.split("(?<![<>=])=(?![=])", 2);
                 String name = parts[0].trim();
                 LexorInterpreter.validateVariableName(name);
                 symbolTable.declare(name, type);

@@ -1,6 +1,8 @@
-%% TC-14 - PRINT FLOAT variable
 SCRIPT AREA
 START SCRIPT
-DECLARE FLOAT temp=98.6
-PRINT: temp
+DECLARE INT x
+DECLARE BOOL isPositive
+SCAN: x
+isPositive= (x > 0)
+PRINT: isPositive
 END SCRIPT

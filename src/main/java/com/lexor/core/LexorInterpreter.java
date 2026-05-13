@@ -100,7 +100,7 @@ public class LexorInterpreter {
 
     // Manages variable assignments, including chained assignments.
     private void handleAssignment(String line) {
-        String[] parts = line.split("=");
+        String[] parts = line.split("(?<![<>=])=(?![=])");
         Object value = evaluator.evaluate(parts[parts.length - 1].trim(), symbolTable);
         for (int i = 0; i < parts.length - 1; i++) {
             String name = parts[i].trim();
