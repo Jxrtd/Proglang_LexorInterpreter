@@ -1,9 +1,10 @@
 package com.lexor.interpreter;
 
-import com.lexor.core.LexorException;
-import com.lexor.lexer.Token;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.lexor.core.LexorException;
+import com.lexor.lexer.Token;
 
 // Manages variable storage, state, and strict data type enforcement.
 public class Environment {
