@@ -1,12 +1,13 @@
 package com.lexor.parser;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.lexor.ast.Expr;
 import com.lexor.ast.Stmt;
 import com.lexor.core.LexorException;
 import com.lexor.lexer.Token;
 import com.lexor.lexer.TokenType;
-import java.util.ArrayList;
-import java.util.List;
 
 // Converts a flat list of Tokens into a structured Tree (AST).
 public class Parser {

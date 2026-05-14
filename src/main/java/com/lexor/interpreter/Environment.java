@@ -15,10 +15,18 @@ public class Environment {
 
     private final Map<String, Variable> values = new HashMap<>();
 
-    // Reserves a slot for a new variable with a specific type.
+    // Reserves a slot for a new variable with a specific type and default value.
     public void define(Token name, String type) {
         if (values.containsKey(name.lexeme)) throw new LexorException(name.line, "Variable '" + name.lexeme + "' already declared.");
-        values.put(name.lexeme, new Variable(null, type.toUpperCase()));
+        
+        Object defaultValue = switch (type.toUpperCase()) {
+            case "INT" -> 0;
+            case "FLOAT" -> 0.0;
+            case "BOOL" -> false;
+            default -> null;
+        };
+        
+        values.put(name.lexeme, new Variable(defaultValue, type.toUpperCase()));
     }
 
     // Updates a variable's value, strictly checking type compatibility.
@@ -38,9 +46,7 @@ public class Environment {
     // Retrieves a variable's current value from memory.
     public Object get(Token name) {
         if (!values.containsKey(name.lexeme)) throw new LexorException(name.line, "Undefined variable '" + name.lexeme + "'.");
-        Object value = values.get(name.lexeme).value;
-        if (value == null) throw new LexorException(name.line, "Variable '" + name.lexeme + "' used before assignment.");
-        return value;
+        return values.get(name.lexeme).value;
     }
 
     // Retrieves the expected type of a variable.

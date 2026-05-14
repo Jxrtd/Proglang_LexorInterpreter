@@ -115,9 +115,11 @@ public class Lexer {
         if (isAtEnd()) throw new LexorException(line, "Unterminated string.");
         advance();
         String value = source.substring(start + 1, current - 1);
-        if (value.equals("TRUE")) addToken(TokenType.BOOL_LITERAL, true);
-        else if (value.equals("FALSE")) addToken(TokenType.BOOL_LITERAL, false);
-        else addToken(TokenType.STRING, value);
+        switch (value) {
+            case "TRUE" -> addToken(TokenType.BOOL_LITERAL, true);
+            case "FALSE" -> addToken(TokenType.BOOL_LITERAL, false);
+            default -> addToken(TokenType.STRING, value);
+        }
     }
 
     // Parses numeric sequences into number tokens.
@@ -126,9 +128,9 @@ public class Lexer {
         if (peek() == '.' && Character.isDigit(peekNext())) {
             advance();
             while (Character.isDigit(peek())) advance();
-            addToken(TokenType.NUMBER, Double.parseDouble(source.substring(start, current)));
+            addToken(TokenType.NUMBER, Double.valueOf(source.substring(start, current)));
         } else {
-            addToken(TokenType.NUMBER, Integer.parseInt(source.substring(start, current)));
+            addToken(TokenType.NUMBER, Integer.valueOf(source.substring(start, current)));
         }
     }
 
@@ -138,9 +140,11 @@ public class Lexer {
         String text = source.substring(start, current);
         TokenType type = keywords.get(text);
         if (type == null) {
-            if (text.equals("TRUE")) addToken(TokenType.BOOL_LITERAL, true);
-            else if (text.equals("FALSE")) addToken(TokenType.BOOL_LITERAL, false);
-            else addToken(TokenType.IDENTIFIER, text);
+            switch (text) {
+                case "TRUE" -> addToken(TokenType.BOOL_LITERAL, true);
+                case "FALSE" -> addToken(TokenType.BOOL_LITERAL, false);
+                default -> addToken(TokenType.IDENTIFIER, text);
+            }
         } else {
             addToken(type);
         }

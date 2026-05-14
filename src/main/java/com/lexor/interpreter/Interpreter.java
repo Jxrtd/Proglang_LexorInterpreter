@@ -1,12 +1,13 @@
 package com.lexor.interpreter;
 
+import java.util.List;
+import java.util.Scanner;
+
 import com.lexor.ast.Expr;
 import com.lexor.ast.Stmt;
 import com.lexor.core.LexorException;
 import com.lexor.lexer.Token;
 import com.lexor.lexer.TokenType;
-import java.util.List;
-import java.util.Scanner;
 
 // Walks through the AST nodes and performs the requested actions.
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
@@ -50,9 +51,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             Object value;
             try {
                 value = switch (type) {
-                    case "INT" -> Integer.parseInt(input);
-                    case "FLOAT" -> Double.parseDouble(input);
-                    case "BOOL" -> Boolean.parseBoolean(input.toLowerCase());
+                    case "INT" -> Integer.valueOf(input);
+
+                    case "FLOAT" -> Double.valueOf(input);
+                    case "BOOL" -> Boolean.valueOf(input.toLowerCase());
                     case "CHAR" -> input.length() == 1 ? input : null;
                     default -> null;
                 };
@@ -132,8 +134,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     private double toDouble(Object o) {
-        if (o instanceof Integer) return ((Integer) o).doubleValue();
-        if (o instanceof Double) return (Double) o;
+        if (o instanceof Integer integer) return integer.doubleValue();
+        if (o instanceof Double aDouble) return aDouble;
         throw new RuntimeException("Number expected.");
     }
 
@@ -151,8 +153,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
         if (expr.operator.type == TokenType.MINUS) {
-            if (right instanceof Integer) return -(Integer) right;
-            if (right instanceof Double) return -(Double) right;
+            if (right instanceof Integer integer) return -integer;
+            if (right instanceof Double aDouble) return -aDouble;
             throw new LexorException(expr.operator.line, "Unary '-' only applies to numbers.");
         }
         if (expr.operator.type == TokenType.NOT) {
