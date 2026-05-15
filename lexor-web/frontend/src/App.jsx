@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { io } from 'socket.io-client';
 import Editor from '@monaco-editor/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import { cn } from './lib/utils';
 
-// --- Professional UI Components ---
+// Connect to backend socket
+const socket = io('http://localhost:5000');
 
 const Panel = ({ children, className, title, icon: Icon }) => (
   <motion.div 
@@ -43,19 +44,41 @@ const Panel = ({ children, className, title, icon: Icon }) => (
 
 const App = () => {
   const [code, setCode] = useState(`START SCRIPT
-DECLARE name
-PRINT: "--- PROFESSIONAL LEXOR IDE ---"
-PRINT: "Initializing System..."
-PRINT: "Enter Operator Name: "
-SCAN name
-PRINT: "Access Granted: Welcome, " & name
+DECLARE INT a, b, c
+PRINT: "Enter three numbers: " & $
+SCAN: a, b, c
+PRINT: "Sum: " & (a + b + c)
 END SCRIPT`);
-  const [inputs, setInputs] = useState('Lexor User');
+  const [currentInput, setCurrentInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('READY');
   const outputRef = useRef(null);
+
+  useEffect(() => {
+    socket.on('output', (data) => {
+      setOutput(prev => prev + data);
+    });
+
+    socket.on('error', (err) => {
+      setError(err);
+      setStatus('ERROR');
+      setLoading(false);
+    });
+
+    socket.on('exit', (code) => {
+      setLoading(false);
+      setStatus(code === 0 ? 'SUCCESS' : 'ERROR');
+      setTimeout(() => setStatus('READY'), 2000);
+    });
+
+    return () => {
+      socket.off('output');
+      socket.off('error');
+      socket.off('exit');
+    };
+  }, []);
 
   // Auto-scroll terminal
   useEffect(() => {
@@ -64,33 +87,19 @@ END SCRIPT`);
     }
   }, [output, error]);
 
-  const handleRun = async () => {
+  const handleRun = () => {
     setLoading(true);
     setStatus('EXECUTING');
     setOutput('');
     setError('');
-    
-    try {
-      const response = await axios.post('http://localhost:5000/api/compile-and-run', {
-        code,
-        inputs
-      });
-      
-      // Simulate terminal "stream" feel
-      if (response.data.output) {
-        setOutput(response.data.output);
-        setStatus('SUCCESS');
-      }
-      if (response.data.error) {
-        setError(response.data.error);
-        setStatus('ERROR');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'System Failure: Backend Connection Lost.');
-      setStatus('OFFLINE');
-    } finally {
-      setLoading(false);
-      setTimeout(() => setStatus(prev => prev === 'SUCCESS' || prev === 'ERROR' ? prev : 'READY'), 2000);
+    socket.emit('run-code', { code });
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      socket.emit('terminal-input', currentInput);
+      setOutput(prev => prev + currentInput + '\n');
+      setCurrentInput('');
     }
   };
 
@@ -195,16 +204,6 @@ END SCRIPT`);
               />
             </div>
           </Panel>
-
-          <Panel title="Manual Inputs" icon={ChevronRight} className="h-40">
-            <textarea
-              value={inputs}
-              onChange={(e) => setInputs(e.target.value)}
-              className="flex-1 p-6 bg-transparent font-mono text-base resize-none focus:outline-none text-blue-300 placeholder:text-white/10"
-              placeholder="Enter runtime inputs..."
-              spellCheck="false"
-            />
-          </Panel>
         </div>
 
         {/* Right: Terminal Stack */}
@@ -215,7 +214,7 @@ END SCRIPT`);
               className="flex-1 p-8 font-mono text-base overflow-auto custom-scrollbar space-y-6"
             >
               <AnimatePresence mode="popLayout">
-                {error ? (
+                {error && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -232,7 +231,9 @@ END SCRIPT`);
                       </pre>
                     </div>
                   </motion.div>
-                ) : output ? (
+                )}
+                
+                {output && (
                   <motion.div 
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -246,7 +247,25 @@ END SCRIPT`);
                       {output}
                     </pre>
                   </motion.div>
-                ) : !loading && (
+                )}
+
+                {loading && (
+                   <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-blue-400 text-[10px] font-bold uppercase">
+                        <ChevronRight size={12} className="animate-pulse" /> Awaiting Stdin
+                      </div>
+                      <input
+                        autoFocus
+                        value={currentInput}
+                        onChange={(e) => setCurrentInput(e.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        className="bg-transparent border-none outline-none text-white w-full font-mono"
+                        placeholder="_"
+                      />
+                   </div>
+                )}
+                
+                {!loading && !output && !error && (
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 0.3 }}
@@ -254,26 +273,6 @@ END SCRIPT`);
                   >
                     <Terminal size={40} strokeWidth={1} />
                     <p className="text-[10px] font-bold tracking-[0.3em] uppercase">System Idle // Awaiting Input</p>
-                  </motion.div>
-                )}
-                
-                {loading && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex flex-col gap-3"
-                  >
-                    <div className="flex items-center gap-2 text-blue-400 text-xs font-bold uppercase tracking-widest">
-                      <Zap size={14} className="animate-bounce" /> Executing Pipeline...
-                    </div>
-                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ x: "-100%" }}
-                        animate={{ x: "100%" }}
-                        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                        className="w-1/2 h-full bg-gradient-to-r from-transparent via-blue-500 to-transparent"
-                      />
-                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

@@ -1,0 +1,16 @@
+SCRIPT AREA
+START SCRIPT
+DECLARE INT i
+DECLARE FLOAT f
+DECLARE BOOL b
+DECLARE CHAR c
+PRINT: "Enter INT: "
+SCAN: i
+PRINT: "Enter FLOAT: "
+SCAN: f
+PRINT: "Enter BOOL: "
+SCAN: b
+PRINT: "Enter CHAR: "
+SCAN: c
+PRINT: "I got: " & i & ", " & f & ", " & b & ", " & c
+END SCRIPT

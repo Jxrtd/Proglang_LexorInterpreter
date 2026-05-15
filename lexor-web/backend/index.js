@@ -1,75 +1,78 @@
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
+const http = require("http");
+const { Server } = require("socket.io");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+	cors: {
+		origin: "http://localhost:5173",
+		methods: ["GET", "POST"],
+	},
+});
+
 const port = 5000;
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-app.post("/api/compile-and-run", (req, res) => {
-	const { code, inputs } = req.body;
+io.on("connection", (socket) => {
+	console.log("Client connected:", socket.id);
 
-	if (!code) {
-		return res.status(400).json({ error: "No code provided" });
-	}
+	socket.on("run-code", ({ code }) => {
+		if (!code) {
+			socket.emit("error", "No code provided");
+			return;
+		}
 
-	// Path to program.lexor in the project root
-	const lexorFilePath = path.join(__dirname, "../../program.lexor");
+		const lexorFilePath = path.join(__dirname, "../../program.lexor");
+		try {
+			fs.writeFileSync(lexorFilePath, code);
+		} catch (err) {
+			socket.emit("error", "Failed to write code to file: " + err.message);
+			return;
+		}
 
-	// Write code to file
-	try {
-		fs.writeFileSync(lexorFilePath, code);
-	} catch (err) {
-		return res
-			.status(500)
-			.json({ error: "Failed to write code to file: " + err.message });
-	}
-
-	// Execute Java process
-	// We assume the classes are in ../../target/classes
-	const classpath = path.join(__dirname, "../../target/classes");
-	const projectRoot = path.join(__dirname, "../../");
-	const javaProcess = spawn("java", ["-cp", classpath, "com.lexor.core.Main"], {
-		cwd: projectRoot,
-	});
-
-	let output = "";
-	let error = "";
-
-	javaProcess.stdout.on("data", (data) => {
-		output += data.toString();
-	});
-
-	javaProcess.stderr.on("data", (data) => {
-		error += data.toString();
-	});
-
-	// Provide inputs to stdin
-	if (inputs) {
-		javaProcess.stdin.write(inputs + "\n");
-	}
-	javaProcess.stdin.end();
-
-	javaProcess.on("close", (code) => {
-		res.json({
-			output: output,
-			error: error,
-			exitCode: code,
+		const classpath = path.join(__dirname, "../../target/classes");
+		const projectRoot = path.join(__dirname, "../../");
+		const javaProcess = spawn("java", ["-cp", classpath, "com.lexor.core.Main"], {
+			cwd: projectRoot,
 		});
-	});
 
-	javaProcess.on("error", (err) => {
-		res
-			.status(500)
-			.json({ error: "Failed to start Java process: " + err.message });
+		socket.on("terminal-input", (input) => {
+			if (javaProcess && !javaProcess.killed) {
+				javaProcess.stdin.write(input + "\n");
+			}
+		});
+
+		javaProcess.stdout.on("data", (data) => {
+			socket.emit("output", data.toString());
+		});
+
+		javaProcess.stderr.on("data", (data) => {
+			socket.emit("output", data.toString()); // Send stderr as output too
+		});
+
+		javaProcess.on("close", (code) => {
+			socket.emit("exit", code);
+		});
+
+		javaProcess.on("error", (err) => {
+			socket.emit("error", "Failed to start Java process: " + err.message);
+		});
+
+		socket.on("disconnect", () => {
+			if (javaProcess && !javaProcess.killed) {
+				javaProcess.kill();
+			}
+		});
 	});
 });
 
-app.listen(port, () => {
+server.listen(port, () => {
 	console.log(`Lexor Backend Bridge running at http://localhost:${port}`);
 });
