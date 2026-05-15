@@ -9,29 +9,23 @@ import com.lexor.core.LexorException;
 import com.lexor.lexer.Token;
 import com.lexor.lexer.TokenType;
 
-// Walks through the AST nodes and performs the requested actions.
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private final Environment environment = new Environment();
     private final Scanner scanner = new Scanner(System.in);
 
-    // Entry point for executing the fully parsed script.
     public void interpret(List<Stmt> statements) {
         for (Stmt statement : statements) execute(statement);
     }
 
-    // Evaluates a statement node.
     private void execute(Stmt stmt) { stmt.accept(this); }
 
-    // Evaluates an expression node and returns its result.
     private Object evaluate(Expr expr) { return expr.accept(this); }
 
-    // Processes a basic expression statement.
     @Override public Void visitExpressionStmt(Stmt.Expression stmt) {
         evaluate(stmt.expression);
         return null;
     }
 
-    // Processes the display logic, including newlines and boolean formatting.
     @Override public Void visitPrintStmt(Stmt.Print stmt) {
         for (Expr expr : stmt.expressions) {
             Object value = evaluate(expr);
@@ -43,7 +37,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Processes user input for one or more variables.
     @Override public Void visitScanStmt(Stmt.Scan stmt) {
         for (Token name : stmt.names) {
             String input = scanner.nextLine();
@@ -67,7 +60,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Defines variables in the environment based on a declaration node.
     @Override public Void visitDeclareStmt(Stmt.Declare stmt) {
         for (int i = 0; i < stmt.names.size(); i++) {
             environment.define(stmt.names.get(i), stmt.type.lexeme);
@@ -76,14 +68,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    // Performs variable assignment at runtime.
     @Override public Object visitAssignExpr(Expr.Assign expr) {
         Object value = evaluate(expr.value);
         environment.assign(expr.name, value);
         return value;
     }
 
-    // Evaluates comparison and arithmetic operations.
     @Override public Object visitBinaryExpr(Expr.Binary expr) {
         Object left = evaluate(expr.left);
         Object right = evaluate(expr.right);
@@ -139,17 +129,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         throw new RuntimeException("Number expected.");
     }
 
-    // Resolves a literal node to its raw Java value.
     @Override public Object visitLiteralExpr(Expr.Literal expr) {
         return expr.value;
     }
 
-    // Resolves a variable name to its current value in the environment.
     @Override public Object visitVariableExpr(Expr.Variable expr) {
         return environment.get(expr.name);
     }
 
-    // Evaluates unary operations (e.g., -5, NOT flag).
     @Override public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
         if (expr.operator.type == TokenType.MINUS) {

@@ -1,9 +1,5 @@
-%% ---------- TC-33 - SCAN then compare with relational operator ----------
 SCRIPT AREA
 START SCRIPT
-DECLARE INT x
-DECLARE BOOL isPositive
-SCAN: x
-isPositive= (x > 0)
-PRINT: isPositive
+DECLARE FLOAT ft= -1.58, g = 4
+PRINT: ft & g
 END SCRIPT

@@ -6,7 +6,6 @@ import java.util.Map;
 import com.lexor.core.LexorException;
 import com.lexor.lexer.Token;
 
-// Manages variable storage, state, and strict data type enforcement.
 public class Environment {
     private static class Variable {
         Object value;
@@ -16,7 +15,6 @@ public class Environment {
 
     private final Map<String, Variable> values = new HashMap<>();
 
-    // Reserves a slot for a new variable with a specific type and default value.
     public void define(Token name, String type) {
         if (values.containsKey(name.lexeme)) throw new LexorException(name.line, "Variable '" + name.lexeme + "' already declared.");
         
@@ -30,13 +28,11 @@ public class Environment {
         values.put(name.lexeme, new Variable(defaultValue, type.toUpperCase()));
     }
 
-    // Updates a variable's value, strictly checking type compatibility.
     public void assign(Token name, Object value) {
         if (!values.containsKey(name.lexeme)) throw new LexorException(name.line, "Variable '" + name.lexeme + "' not declared.");
         Variable var = values.get(name.lexeme);
         validateType(name, var.type, value);
         
-        // Coerce string literals to boolean if target is BOOL
         if (var.type.equals("BOOL") && value instanceof String s) {
             value = s.equals("TRUE");
         }
@@ -44,24 +40,21 @@ public class Environment {
         var.value = value;
     }
 
-    // Retrieves a variable's current value from memory.
     public Object get(Token name) {
         if (!values.containsKey(name.lexeme)) throw new LexorException(name.line, "Undefined variable '" + name.lexeme + "'.");
         return values.get(name.lexeme).value;
     }
 
-    // Retrieves the expected type of a variable.
     public String getType(Token name) {
         if (!values.containsKey(name.lexeme)) throw new LexorException(name.line, "Undefined variable '" + name.lexeme + "'.");
         return values.get(name.lexeme).type;
     }
 
-    // Enforces the strongly-typed nature of the LEXOR language.
     private void validateType(Token name, String expectedType, Object value) {
         boolean ok = false;
         switch (expectedType) {
             case "INT" -> ok = value instanceof Integer;
-            case "FLOAT" -> ok = value instanceof Double || value instanceof Integer;
+            case "FLOAT" -> ok = value instanceof Double;
             case "BOOL" -> {
                 if (value instanceof Boolean) ok = true;
                 else if (value instanceof String s) {

@@ -10,9 +10,7 @@ import com.lexor.lexer.Lexer;
 import com.lexor.lexer.Token;
 import com.lexor.parser.Parser;
 
-// The main entry point that wires the Lexer, Parser, and Interpreter together.
 public class Main {
-    // Reads source file and runs the full compiler pipeline.
     public static void main(String[] args) {
         String filename = "program.lexor";
         try {
